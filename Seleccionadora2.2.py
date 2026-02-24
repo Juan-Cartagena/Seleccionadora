@@ -18,15 +18,9 @@ object_sorted_ids = set()
 
 ### https://www.youtube.com/watch?v=oR71RSulTkQ
 
-# rojo
-red_low1=np.array([0,100,20],np.uint8)
-red_hi1=np.array([8,255,255],np.uint8)
-
-red_low2=np.array([175,100,20],np.uint8)
-red_hi2=np.array([179,255,255],np.uint8)
-# Verde
-green_low=np.array([26,100,20],np.uint8)
-green_hi=np.array([80,255,255],np.uint8)
+# Cafe (Quaker) - valores calibrados desde imagen de referencia
+coffee_low = np.array([9,  121, 109], np.uint8)
+coffee_hi  = np.array([34, 179, 226], np.uint8)
 Parametros=1
 RESIZE_RATIO = 0.25
 
@@ -93,31 +87,25 @@ def morpho(src):
 	return close
 
 def find_object(im, mask, col):
-    if col == 'r':
-        color=(0,0,255)
-        clase='1'
-    if col == 'v':
-        color=(0,255,0)
-        clase='0'
-        
-    cnts, hierarchy = cv2.findContours(morpho(mask),cv2.RETR_LIST,cv2.CHAIN_APPROX_NONE) 
-    #cv2.drawContours(im,cnts,-1,color,2)
+    cnts, hierarchy = cv2.findContours(morpho(mask), cv2.RETR_LIST, cv2.CHAIN_APPROX_NONE)
     detections = []
     for c in cnts:
-        area=cv2.contourArea(c)
-        #print ('area:',area,'color',color)
-        if area > 400:
-
-            x,y,w,h = cv2.boundingRect(c)
-            detections.append([x, y, w, h,col])
+        area = cv2.contourArea(c)
+        if area > 150:
+            x, y, w, h = cv2.boundingRect(c)
+            detections.append([x, y, w, h, col])
     return detections
 
 if Parametros==1:
     cv2.namedWindow('Parametros')
-    cv2.createTrackbar('brillo','Parametros', 50,255,nada)
-    cv2.createTrackbar('greenLow','Parametros', 20,40,nada)
-    cv2.createTrackbar('greenHigh','Parametros', 70,100,nada)
-    cv2.createTrackbar('focus','Parametros', 0,50,nada)
+    cv2.createTrackbar('brillo',  'Parametros', 85,  255, nada)
+    cv2.createTrackbar('focus',   'Parametros', 0,   50,  nada)
+    cv2.createTrackbar('H_min',   'Parametros', 9,   179, nada)
+    cv2.createTrackbar('H_max',   'Parametros', 34,  179, nada)
+    cv2.createTrackbar('S_min',   'Parametros', 121, 255, nada)
+    cv2.createTrackbar('S_max',   'Parametros', 179, 255, nada)
+    cv2.createTrackbar('V_min',   'Parametros', 109, 255, nada)
+    cv2.createTrackbar('V_max',   'Parametros', 226, 255, nada)
 while (cap.isOpened()):
     #cv2.getTrackbarPos('exposure','Parametros')
     #cap.set(cv2.CAP_PROP_EXPOSURE,cv2.getTrackbarPos('expo','Parametros'))
@@ -131,51 +119,40 @@ while (cap.isOpened()):
     im=img[0:VR,0:int(HR*1)]
 
     if Parametros == 1:
+        coffee_low = np.array([
+            cv2.getTrackbarPos('H_min', 'Parametros'),
+            cv2.getTrackbarPos('S_min', 'Parametros'),
+            cv2.getTrackbarPos('V_min', 'Parametros')
+        ], np.uint8)
+        coffee_hi = np.array([
+            cv2.getTrackbarPos('H_max', 'Parametros'),
+            cv2.getTrackbarPos('S_max', 'Parametros'),
+            cv2.getTrackbarPos('V_max', 'Parametros')
+        ], np.uint8)
+        cap.set(cv2.CAP_PROP_BRIGHTNESS, cv2.getTrackbarPos('brillo', 'Parametros'))
+        cap.set(28, cv2.getTrackbarPos('focus', 'Parametros'))
 
-        red_low1=np.array([0,100,20],np.uint8)
-        red_hi1=np.array([8,255,255],np.uint8)
-        red_low2=np.array([175,100,20],np.uint8)
-        red_hi2=np.array([179,255,255],np.uint8)
-        # Verde
-        green_low=np.array([cv2.getTrackbarPos('greenLow','Parametros'),100,20],np.uint8)
-        green_hi=np.array([cv2.getTrackbarPos('greenHigh','Parametros'),255,255],np.uint8)
-        cap.set(cv2.CAP_PROP_BRIGHTNESS, cv2.getTrackbarPos('brillo','Parametros'))
-        cap.set(28, cv2.getTrackbarPos('focus','Parametros'))
 
 
+    hsv = cv2.cvtColor(im, cv2.COLOR_BGR2HSV)
+    mask_coffee = cv2.inRange(hsv, coffee_low, coffee_hi)
 
-    hsv= cv2.cvtColor(im,cv2.COLOR_BGR2HSV)
-    mask_hsv_r1=cv2.inRange(hsv,red_low1,red_hi1)
-    mask_hsv_r2=cv2.inRange(hsv,red_low2,red_hi2)
-    mask_hsv_r=cv2.add(mask_hsv_r1,mask_hsv_r2)
-
-    mask_hsv_g=cv2.inRange(hsv,green_low,green_hi)
-
-    puntos_rojos=find_object(im,mask_hsv_r,'r')
-    puntos_verdes=find_object(im,mask_hsv_g,'v')
-    puntos=puntos_verdes+puntos_rojos
-    boxes_ids = tracker.update(puntos)
+    puntos_cafe = find_object(im, mask_coffee, 'cafe')
+    boxes_ids = tracker.update(puntos_cafe)
 
     for box_id in boxes_ids:
-        x, y, w, h,col, id = box_id
+        x, y, w, h, col, id = box_id
         cx = (x + x + w) // 2
         cy = (y + y + h) // 2
-        if col == 'r':
-            color=(0,0,255)
-            clase='1'
-        if col == 'v':
-            color=(0,255,0)
-            clase='0'
-            if VR*0.05<cy<VR*0.1:
-                if id not in object_sorted_ids:
-                    object_sorted_ids.add(id)
-                    print (object_sorted_ids)
-                    print('x=',cx)
-                    value = write_read('M'+str(int(cx/17))+'\n')
-                    print ('arduino dice:',value)
+        color = (0, 165, 255)  # naranja para granos de cafe
+        if VR * 0.05 < cy < VR * 0.1:
+            if id not in object_sorted_ids:
+                object_sorted_ids.add(id)
+                print(object_sorted_ids)
+                print('x=', cx)
+                value = write_read('M' + str(int(cx / 17)) + '\n')
+                print('arduino dice:', value)
 
-
-        #int(cx/17)
         cv2.putText(im, str(id), (x, y - 15), cv2.FONT_HERSHEY_PLAIN, 2, (255, 0, 0), 2)
         cv2.rectangle(im, (x, y), (x + w, y + h), color, 1)
 
@@ -184,8 +161,7 @@ while (cap.isOpened()):
 
     
 
-    cv2.imshow('Mask Red',mask_hsv_r)
-    cv2.imshow('Mask Green',mask_hsv_g)
+    cv2.imshow('Mask Coffee', mask_coffee)
     
     key = cv2.waitKey(1)
     if key==27:
