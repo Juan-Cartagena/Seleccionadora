@@ -1,3 +1,4 @@
+ 
 from ctypes import HRESULT
 import cv2
 import serial
@@ -10,7 +11,7 @@ from tracker import *
 
 
 start_time = time.time()
-arduino = serial.Serial(port='COM6', baudrate=115200, timeout=.1) #https://create.arduino.cc/projecthub/ansh2919/serial-communication-between-python-and-arduino-e7cce0
+arduino = serial.Serial(port='COM3', baudrate=115200, timeout=.1) #https://create.arduino.cc/projecthub/ansh2919/serial-communication-between-python-and-arduino-e7cce0
 #https://www.youtube.com/watch?v=g4_SpZGaszY
 tracker = EuclideanDistTracker()
 object_sorted_ids = set()
