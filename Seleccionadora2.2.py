@@ -145,10 +145,12 @@ if Parametros == 1:
     cv2.createTrackbar('H_max',    'Parametros', 34,             179,  nada)
     cv2.createTrackbar('S_min',    'Parametros', 121,            255,  nada)
     cv2.createTrackbar('S_max',    'Parametros', 179,            255,  nada)
-    cv2.createTrackbar('V_min',    'Parametros', 109,            255,  nada)
-    cv2.createTrackbar('V_max',    'Parametros', 226,            255,  nada)
-    # Nuevo slider: área mínima del contorno (px²) para filtrar ruido
-    cv2.createTrackbar('area_min', 'Parametros', AREA_MIN_INIT,  5000, nada)
+    cv2.createTrackbar('V_min',      'Parametros', 109,            255,  nada)
+    cv2.createTrackbar('V_max',      'Parametros', 226,            255,  nada)
+    # Slider de área mínima del contorno (px²) para filtrar ruido
+    cv2.createTrackbar('area_min',   'Parametros', AREA_MIN_INIT,  500, nada)
+    # Checkbox (0/1): mostrar línea de meta en la ventana Image
+    cv2.createTrackbar('linea_meta', 'Parametros', 1,              1,    nada)
 
 # ──────────────────────────────────────────────────────────────
 # Bucle principal de captura y procesamiento
@@ -174,15 +176,24 @@ while (cap.isOpened()):
             cv2.getTrackbarPos('S_max', 'Parametros'),
             cv2.getTrackbarPos('V_max', 'Parametros')
         ], np.uint8)
-        cap.set(cv2.CAP_PROP_BRIGHTNESS, cv2.getTrackbarPos('brillo',   'Parametros'))
-        cap.set(28,                      cv2.getTrackbarPos('focus',    'Parametros'))
-        area_min = cv2.getTrackbarPos('area_min', 'Parametros')  # Área mínima desde slider
+        cap.set(cv2.CAP_PROP_BRIGHTNESS, cv2.getTrackbarPos('brillo',     'Parametros'))
+        cap.set(28,                      cv2.getTrackbarPos('focus',      'Parametros'))
+        area_min   = cv2.getTrackbarPos('area_min',   'Parametros')  # Área mínima desde slider
+        linea_meta = cv2.getTrackbarPos('linea_meta', 'Parametros')  # 1 = mostrar línea, 0 = ocultar
     else:
-        area_min = AREA_MIN_INIT  # Valor fijo si no hay ventana de parámetros
+        area_min   = AREA_MIN_INIT  # Valor fijo si no hay ventana de parámetros
+        linea_meta = 0
 
     # ── Convertir a HSV y crear máscara para granos de café ──
     hsv         = cv2.cvtColor(im, cv2.COLOR_BGR2HSV)
     mask_coffee = cv2.inRange(hsv, coffee_low, coffee_hi)
+
+    # ── Dibujar línea de meta si el checkbox está activo ──
+    if linea_meta == 1:
+        y_top = int(VR * 0.05)   # Borde superior de la banda de detección
+        y_bot = int(VR * 0.10)   # Borde inferior de la banda de detección
+        cv2.line(im, (0, y_top), (HR, y_top), (255, 255, 255), 1)  # Línea superior
+        cv2.line(im, (0, y_bot), (HR, y_bot), (255, 255, 255), 1)  # Línea inferior
 
     # ── Detectar objetos y actualizar tracker ──
     puntos_cafe = find_object(im, mask_coffee, 'cafe', area_min)
