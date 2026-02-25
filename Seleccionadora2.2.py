@@ -138,6 +138,7 @@ def find_object(im, mask, col, area_min=40):
 # ──────────────────────────────────────────────────────────────
 if Parametros == 1:
     cv2.namedWindow('Parametros')
+    cv2.resizeWindow('Parametros', 600, 400)  # Ancho x Alto — agrandar si aún quedan sliders ocultos
     cv2.createTrackbar('brillo',   'Parametros', 85,             255,  nada)
     cv2.createTrackbar('focus',    'Parametros', 0,              50,   nada)
     cv2.createTrackbar('H_min',    'Parametros', 9,              179,  nada)
