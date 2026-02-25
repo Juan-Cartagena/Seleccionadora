@@ -1,0 +1,12 @@
+{
+    "brillo": 88,
+    "focus": 0,
+    "H_min": 10,
+    "H_max": 21,
+    "S_min": 106,
+    "S_max": 238,
+    "V_min": 48,
+    "V_max": 229,
+    "area_min": 21,
+    "linea_meta": 1
+}

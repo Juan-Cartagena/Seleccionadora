@@ -3,6 +3,8 @@ from ctypes import HRESULT
 import cv2
 import serial
 import io
+import json
+import os
 import numpy as np
 from time import sleep
 import time
@@ -41,7 +43,7 @@ AREA_MIN_INIT = 40
 Parametros = 1
 
 # Factor de redimensionado (no usado actualmente, reservado para pruebas)
-RESIZE_RATIO = 0.5
+RESIZE_RATIO = 0.25
 
 # ──────────────────────────────────────────────────────────────
 # Captura de video
@@ -87,6 +89,52 @@ print("--- %s seconds ---" % (time.time() - start_time))
 print("shape", frame1.shape)
 print("size",  frame1.size)
 print("dtype", frame1.dtype)
+
+# ──────────────────────────────────────────────────────────────
+# Persistencia de parámetros: guardar/cargar sliders en JSON
+# El archivo se crea en la misma carpeta que este script
+# ──────────────────────────────────────────────────────────────
+PARAMS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'parametros.json')
+
+DEFAULT_PARAMS = {
+    'brillo':     85,
+    'focus':      0,
+    'H_min':      9,
+    'H_max':      34,
+    'S_min':      121,
+    'S_max':      179,
+    'V_min':      109,
+    'V_max':      226,
+    'area_min':   40,
+    'linea_meta': 1,
+}
+
+def cargar_params():
+    """Lee parametros.json; si no existe devuelve los valores por defecto."""
+    if os.path.isfile(PARAMS_FILE):
+        try:
+            with open(PARAMS_FILE, 'r') as f:
+                data = json.load(f)
+            # Rellenar claves faltantes con defaults (compatibilidad hacia atrás)
+            for k, v in DEFAULT_PARAMS.items():
+                data.setdefault(k, v)
+            print('Parámetros cargados desde', PARAMS_FILE)
+            return data
+        except Exception as e:
+            print('Error leyendo parametros.json, usando defaults:', e)
+    return dict(DEFAULT_PARAMS)
+
+def guardar_params(p):
+    """Escribe el diccionario p en parametros.json."""
+    try:
+        with open(PARAMS_FILE, 'w') as f:
+            json.dump(p, f, indent=4)
+        print('Parámetros guardados en', PARAMS_FILE)
+    except Exception as e:
+        print('Error guardando parametros.json:', e)
+
+# Cargar valores al inicio (o usar defaults la primera vez)
+params = cargar_params()
 
 # ──────────────────────────────────────────────────────────────
 # Función: enviar comando al Arduino y leer respuesta
@@ -139,18 +187,17 @@ def find_object(im, mask, col, area_min=40):
 if Parametros == 1:
     cv2.namedWindow('Parametros')
     cv2.resizeWindow('Parametros', 600, 400)  # Ancho x Alto — agrandar si aún quedan sliders ocultos
-    cv2.createTrackbar('brillo',   'Parametros', 85,             255,  nada)
-    cv2.createTrackbar('focus',    'Parametros', 0,              50,   nada)
-    cv2.createTrackbar('H_min',    'Parametros', 9,              179,  nada)
-    cv2.createTrackbar('H_max',    'Parametros', 34,             179,  nada)
-    cv2.createTrackbar('S_min',    'Parametros', 121,            255,  nada)
-    cv2.createTrackbar('S_max',    'Parametros', 179,            255,  nada)
-    cv2.createTrackbar('V_min',      'Parametros', 109,            255,  nada)
-    cv2.createTrackbar('V_max',      'Parametros', 226,            255,  nada)
-    # Slider de área mínima del contorno (px²) para filtrar ruido
-    cv2.createTrackbar('area_min',   'Parametros', AREA_MIN_INIT,  500, nada)
-    # Checkbox (0/1): mostrar línea de meta en la ventana Image
-    cv2.createTrackbar('linea_meta', 'Parametros', 1,              1,    nada)
+    # Los valores iniciales vienen del archivo parametros.json (o defaults si es la primera vez)
+    cv2.createTrackbar('brillo',     'Parametros', params['brillo'],     255,  nada)
+    cv2.createTrackbar('focus',      'Parametros', params['focus'],      50,   nada)
+    cv2.createTrackbar('H_min',      'Parametros', params['H_min'],      179,  nada)
+    cv2.createTrackbar('H_max',      'Parametros', params['H_max'],      179,  nada)
+    cv2.createTrackbar('S_min',      'Parametros', params['S_min'],      255,  nada)
+    cv2.createTrackbar('S_max',      'Parametros', params['S_max'],      255,  nada)
+    cv2.createTrackbar('V_min',      'Parametros', params['V_min'],      255,  nada)
+    cv2.createTrackbar('V_max',      'Parametros', params['V_max'],      255,  nada)
+    cv2.createTrackbar('area_min',   'Parametros', params['area_min'],   500,  nada)
+    cv2.createTrackbar('linea_meta', 'Parametros', params['linea_meta'], 1,    nada)
 
 # ──────────────────────────────────────────────────────────────
 # Bucle principal de captura y procesamiento
@@ -255,6 +302,23 @@ while (cap.isOpened()):
 # ──────────────────────────────────────────────────────────────
 # Limpieza al cerrar
 # ──────────────────────────────────────────────────────────────
+
+# Guardar valores actuales de los sliders antes de salir
+if Parametros == 1:
+    params_guardados = {
+        'brillo':     cv2.getTrackbarPos('brillo',     'Parametros'),
+        'focus':      cv2.getTrackbarPos('focus',      'Parametros'),
+        'H_min':      cv2.getTrackbarPos('H_min',      'Parametros'),
+        'H_max':      cv2.getTrackbarPos('H_max',      'Parametros'),
+        'S_min':      cv2.getTrackbarPos('S_min',      'Parametros'),
+        'S_max':      cv2.getTrackbarPos('S_max',      'Parametros'),
+        'V_min':      cv2.getTrackbarPos('V_min',      'Parametros'),
+        'V_max':      cv2.getTrackbarPos('V_max',      'Parametros'),
+        'area_min':   cv2.getTrackbarPos('area_min',   'Parametros'),
+        'linea_meta': cv2.getTrackbarPos('linea_meta', 'Parametros'),
+    }
+    guardar_params(params_guardados)
+
 _ = write_read('C0\n')       # Detener cinta antes de salir
 cap.release()
 cv2.destroyAllWindows()
