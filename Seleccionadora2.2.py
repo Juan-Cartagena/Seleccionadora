@@ -97,16 +97,19 @@ print("dtype", frame1.dtype)
 PARAMS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'parametros.json')
 
 DEFAULT_PARAMS = {
-    'brillo':     85,
-    'focus':      0,
-    'H_min':      9,
-    'H_max':      34,
-    'S_min':      121,
-    'S_max':      179,
-    'V_min':      109,
-    'V_max':      226,
-    'area_min':   40,
-    'linea_meta': 1,
+    'brillo':       85,
+    'focus':        0,
+    'H_min':        9,
+    'H_max':        34,
+    'S_min':        121,
+    'S_max':        179,
+    'V_min':        109,
+    'V_max':        226,
+    'area_min':     40,
+    'linea_meta':   1,
+    'zona_top':     5,   # % del alto del frame → borde superior de la banda de detección
+    'zona_bot':     10,  # % del alto del frame → borde inferior de la banda de detección
+    'disparo_delay': 0,  # ms de espera antes de enviar la señal al Arduino
 }
 
 def cargar_params():
@@ -186,18 +189,22 @@ def find_object(im, mask, col, area_min=40):
 # ──────────────────────────────────────────────────────────────
 if Parametros == 1:
     cv2.namedWindow('Parametros')
-    cv2.resizeWindow('Parametros', 600, 400)  # Ancho x Alto — agrandar si aún quedan sliders ocultos
+    cv2.resizeWindow('Parametros', 600, 550)  # Ancho x Alto — agrandado para los sliders nuevos
     # Los valores iniciales vienen del archivo parametros.json (o defaults si es la primera vez)
-    cv2.createTrackbar('brillo',     'Parametros', params['brillo'],     255,  nada)
-    cv2.createTrackbar('focus',      'Parametros', params['focus'],      50,   nada)
-    cv2.createTrackbar('H_min',      'Parametros', params['H_min'],      179,  nada)
-    cv2.createTrackbar('H_max',      'Parametros', params['H_max'],      179,  nada)
-    cv2.createTrackbar('S_min',      'Parametros', params['S_min'],      255,  nada)
-    cv2.createTrackbar('S_max',      'Parametros', params['S_max'],      255,  nada)
-    cv2.createTrackbar('V_min',      'Parametros', params['V_min'],      255,  nada)
-    cv2.createTrackbar('V_max',      'Parametros', params['V_max'],      255,  nada)
-    cv2.createTrackbar('area_min',   'Parametros', params['area_min'],   500,  nada)
-    cv2.createTrackbar('linea_meta', 'Parametros', params['linea_meta'], 1,    nada)
+    cv2.createTrackbar('brillo',        'Parametros', params['brillo'],        255, nada)
+    cv2.createTrackbar('focus',         'Parametros', params['focus'],         50,  nada)
+    cv2.createTrackbar('H_min',         'Parametros', params['H_min'],         179, nada)
+    cv2.createTrackbar('H_max',         'Parametros', params['H_max'],         179, nada)
+    cv2.createTrackbar('S_min',         'Parametros', params['S_min'],         255, nada)
+    cv2.createTrackbar('S_max',         'Parametros', params['S_max'],         255, nada)
+    cv2.createTrackbar('V_min',         'Parametros', params['V_min'],         255, nada)
+    cv2.createTrackbar('V_max',         'Parametros', params['V_max'],         255, nada)
+    cv2.createTrackbar('area_min',      'Parametros', params['area_min'],      500, nada)
+    cv2.createTrackbar('linea_meta',    'Parametros', params['linea_meta'],    1,   nada)
+    # ── Nuevos sliders de zona y delay ──
+    cv2.createTrackbar('zona_top %',    'Parametros', params['zona_top'],      100, nada)  # Borde superior (% del alto)
+    cv2.createTrackbar('zona_bot %',    'Parametros', params['zona_bot'],      100, nada)  # Borde inferior (% del alto)
+    cv2.createTrackbar('disparo_delay', 'Parametros', params['disparo_delay'], 500, nada)  # Delay disparo (ms)
 
 # ──────────────────────────────────────────────────────────────
 # Bucle principal de captura y procesamiento
@@ -225,11 +232,21 @@ while (cap.isOpened()):
         ], np.uint8)
         cap.set(cv2.CAP_PROP_BRIGHTNESS, cv2.getTrackbarPos('brillo',     'Parametros'))
         cap.set(28,                      cv2.getTrackbarPos('focus',      'Parametros'))
-        area_min   = cv2.getTrackbarPos('area_min',   'Parametros')  # Área mínima desde slider
-        linea_meta = cv2.getTrackbarPos('linea_meta', 'Parametros')  # 1 = mostrar línea, 0 = ocultar
+        area_min      = cv2.getTrackbarPos('area_min',      'Parametros')  # Área mínima desde slider
+        linea_meta    = cv2.getTrackbarPos('linea_meta',    'Parametros')  # 1 = mostrar línea, 0 = ocultar
+        zona_top_pct  = cv2.getTrackbarPos('zona_top %',   'Parametros')  # Borde superior de detección (%)
+        zona_bot_pct  = cv2.getTrackbarPos('zona_bot %',   'Parametros')  # Borde inferior de detección (%)
+        disparo_delay = cv2.getTrackbarPos('disparo_delay','Parametros')  # Delay antes del disparo (ms)
     else:
-        area_min   = AREA_MIN_INIT  # Valor fijo si no hay ventana de parámetros
-        linea_meta = 0
+        area_min      = AREA_MIN_INIT
+        linea_meta    = 0
+        zona_top_pct  = 5
+        zona_bot_pct  = 10
+        disparo_delay = 0
+
+    # Convertir porcentajes a píxeles
+    y_top = int(VR * zona_top_pct / 100)
+    y_bot = int(VR * zona_bot_pct / 100)
 
     # ── Convertir a HSV y crear máscara para granos de café ──
     hsv         = cv2.cvtColor(im, cv2.COLOR_BGR2HSV)
@@ -237,10 +254,8 @@ while (cap.isOpened()):
 
     # ── Dibujar línea de meta si el checkbox está activo ──
     if linea_meta == 1:
-        y_top = int(VR * 0.05)   # Borde superior de la banda de detección
-        y_bot = int(VR * 0.10)   # Borde inferior de la banda de detección
-        cv2.line(im, (0, y_top), (HR, y_top), (255, 255, 255), 1)  # Línea superior
-        cv2.line(im, (0, y_bot), (HR, y_bot), (255, 255, 255), 1)  # Línea inferior
+        cv2.line(im, (0, y_top), (HR, y_top), (255, 255, 255), 1)  # Línea superior de la zona
+        cv2.line(im, (0, y_bot), (HR, y_bot), (255, 255, 255), 1)  # Línea inferior de la zona
 
     # ── Detectar objetos y actualizar tracker ──
     puntos_cafe = find_object(im, mask_coffee, 'cafe', area_min)
@@ -253,12 +268,15 @@ while (cap.isOpened()):
         cy = (y + y + h) // 2   # Centro vertical del bounding box
         color = (0, 165, 255)    # Naranja para granos de café
 
-        # Si el objeto cruza la banda de detección (5%-10% del alto del frame)
-        if VR * 0.05 < cy < VR * 0.1:
+        # Si el objeto cruza la banda de detección (controlada por sliders zona_top/zona_bot)
+        if y_top < cy < y_bot:
             if id not in object_sorted_ids:
                 object_sorted_ids.add(id)   # Marcar como ya enviado
                 print(object_sorted_ids)
                 print('x=', cx)
+                # Esperar el delay configurado antes de disparar
+                if disparo_delay > 0:
+                    time.sleep(disparo_delay / 1000.0)
                 # Enviar posición al Arduino (escala de 0-37 aprox.)
                 value = write_read('M' + str(int(cx / 17)) + '\n')
                 print('arduino dice:', value)
@@ -306,16 +324,19 @@ while (cap.isOpened()):
 # Guardar valores actuales de los sliders antes de salir
 if Parametros == 1:
     params_guardados = {
-        'brillo':     cv2.getTrackbarPos('brillo',     'Parametros'),
-        'focus':      cv2.getTrackbarPos('focus',      'Parametros'),
-        'H_min':      cv2.getTrackbarPos('H_min',      'Parametros'),
-        'H_max':      cv2.getTrackbarPos('H_max',      'Parametros'),
-        'S_min':      cv2.getTrackbarPos('S_min',      'Parametros'),
-        'S_max':      cv2.getTrackbarPos('S_max',      'Parametros'),
-        'V_min':      cv2.getTrackbarPos('V_min',      'Parametros'),
-        'V_max':      cv2.getTrackbarPos('V_max',      'Parametros'),
-        'area_min':   cv2.getTrackbarPos('area_min',   'Parametros'),
-        'linea_meta': cv2.getTrackbarPos('linea_meta', 'Parametros'),
+        'brillo':        cv2.getTrackbarPos('brillo',        'Parametros'),
+        'focus':         cv2.getTrackbarPos('focus',         'Parametros'),
+        'H_min':         cv2.getTrackbarPos('H_min',        'Parametros'),
+        'H_max':         cv2.getTrackbarPos('H_max',        'Parametros'),
+        'S_min':         cv2.getTrackbarPos('S_min',        'Parametros'),
+        'S_max':         cv2.getTrackbarPos('S_max',        'Parametros'),
+        'V_min':         cv2.getTrackbarPos('V_min',        'Parametros'),
+        'V_max':         cv2.getTrackbarPos('V_max',        'Parametros'),
+        'area_min':      cv2.getTrackbarPos('area_min',     'Parametros'),
+        'linea_meta':    cv2.getTrackbarPos('linea_meta',   'Parametros'),
+        'zona_top':      cv2.getTrackbarPos('zona_top %',   'Parametros'),
+        'zona_bot':      cv2.getTrackbarPos('zona_bot %',   'Parametros'),
+        'disparo_delay': cv2.getTrackbarPos('disparo_delay','Parametros'),
     }
     guardar_params(params_guardados)
 

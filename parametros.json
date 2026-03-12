@@ -1,12 +1,15 @@
 {
-    "brillo": 75,
+    "brillo": 76,
     "focus": 0,
     "H_min": 9,
     "H_max": 25,
-    "S_min": 66,
+    "S_min": 61,
     "S_max": 255,
-    "V_min": 84,
+    "V_min": 88,
     "V_max": 255,
-    "area_min": 54,
-    "linea_meta": 0
+    "area_min": 32,
+    "linea_meta": 1,
+    "zona_top": 2,
+    "zona_bot": 6,
+    "disparo_delay": 0
 }
