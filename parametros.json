@@ -1,12 +1,12 @@
 {
-    "brillo": 78,
+    "brillo": 75,
     "focus": 0,
-    "H_min": 4,
-    "H_max": 19,
-    "S_min": 149,
+    "H_min": 9,
+    "H_max": 25,
+    "S_min": 66,
     "S_max": 255,
-    "V_min": 36,
-    "V_max": 168,
-    "area_min": 79,
+    "V_min": 84,
+    "V_max": 255,
+    "area_min": 54,
     "linea_meta": 0
 }

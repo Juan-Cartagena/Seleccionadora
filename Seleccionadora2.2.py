@@ -172,7 +172,7 @@ def morpho(src):
 #   area_min – área mínima en px² para considerar un contorno válido
 # ──────────────────────────────────────────────────────────────
 def find_object(im, mask, col, area_min=40):
-    cnts, hierarchy = cv2.findContours(morpho(mask), cv2.RETR_LIST, cv2.CHAIN_APPROX_NONE)
+    cnts, hierarchy = cv2.findContours(morpho(mask), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
     detections = []
     for c in cnts:
         area = cv2.contourArea(c)
