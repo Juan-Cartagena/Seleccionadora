@@ -43,7 +43,7 @@ AREA_MIN_INIT = 40
 Parametros = 1
 
 # Factor de redimensionado (no usado actualmente, reservado para pruebas)
-RESIZE_RATIO = 0.25
+RESIZE_RATIO = 0.5
 
 # ──────────────────────────────────────────────────────────────
 # Captura de video
@@ -77,8 +77,8 @@ VR = 360
 #HR = 1280
 #VR = 720
 
-#HR = 1920
-#VR = 1080
+# HR = 1920
+# VR = 1080
 
 cap.set(3, HR)  # Resolución horizontal
 cap.set(4, VR)  # Resolución vertical
