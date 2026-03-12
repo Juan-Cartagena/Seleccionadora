@@ -13,7 +13,7 @@ int DIR_Dosificador=6;
 bool conveyor =0;
 
 int Actuador[18];
-int t_delay=200;
+int t_delay=220;
 int t_on=105;
 
 int retraso_dosificador=0;

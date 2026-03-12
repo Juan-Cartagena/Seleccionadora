@@ -9,7 +9,7 @@
     "V_max": 255,
     "area_min": 32,
     "linea_meta": 1,
-    "zona_top": 2,
-    "zona_bot": 6,
+    "zona_top": 5,
+    "zona_bot": 10,
     "disparo_delay": 0
 }
